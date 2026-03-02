@@ -4,5 +4,4 @@ docs.pkl
 faiss.index
 faiss_index.bin
 final_output_parser.json
-income-tax.pdf
 .DS_Store
