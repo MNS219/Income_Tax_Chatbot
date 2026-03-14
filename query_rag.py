@@ -22,4 +22,4 @@ def retrieve(query, k=5):
     query_vec = model.encode([query])
     D, I = index.search(query_vec, k)
 
-    return [documents[i] for i in I[0]]
+    return [documents[i] for i in I[0] if i != -1]

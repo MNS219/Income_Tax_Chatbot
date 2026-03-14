@@ -16,10 +16,10 @@ def expand_with_kg(section):
             OPTIONAL MATCH (s)-[:HAS_INVESTMENT]->(i:Investment)
 
             RETURN 
-                collect(DISTINCT e.name) AS eligibility,
-                collect(DISTINCT c.name) AS conditions,
-                collect(DISTINCT ex.name) AS exceptions,
-                collect(DISTINCT i.name) AS investments
+                collect(DISTINCT e.text) AS eligibility,
+                collect(DISTINCT c.text) AS conditions,
+                collect(DISTINCT ex.text) AS exceptions,
+                collect(DISTINCT i.text) AS investments
         """, section=section)
 
         record = result.single()
@@ -31,8 +31,7 @@ def expand_with_kg(section):
 
         for key in ["eligibility", "conditions", "exceptions", "investments"]:
             values = record[key]
-
             if values:
-                output.extend([str(v) for v in values if v])
-
+                label = key.capitalize()
+                output.extend([f"{label}: {v}" for v in values if v])
         return output
