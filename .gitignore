@@ -3,5 +3,8 @@ myenv
 docs.pkl
 faiss.index
 faiss_index.bin
-final_output_parser.json
 .DS_Store
+debug_retrieve.py
+fix_missing_sections.py
+
+test.py

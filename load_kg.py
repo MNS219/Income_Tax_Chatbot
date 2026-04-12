@@ -1,68 +1,66 @@
+import os
 from neo4j import GraphDatabase
 import json
 
-# -------------------------------
-# CONFIG
-# -------------------------------
 URI = "bolt://localhost:7687"
 USERNAME = "neo4j"
-PASSWORD = "password123"   # 🔥 change this
+PASSWORD = "password123"   
+JSON_FILE = "final_output_parser.json"
 
-JSON_FILE = "final_output_parser2.json"
-
-
-# -------------------------------
-# CONNECT
-# -------------------------------
 driver = GraphDatabase.driver(URI, auth=(USERNAME, PASSWORD))
 
 
-# -------------------------------
-# CREATE KG
-# -------------------------------
 def create_kg(tx, section_data):
     section_name = section_data["section"]
+    description  = section_data.get("description", "")
+    raw_text     = section_data.get("raw_text", "")
 
-    # Create Section node
+    # Store description and raw_text on the Section node itself
     tx.run("""
         MERGE (s:Section {name: $section})
-    """, section=section_name)
+        SET s.description = $description,
+            s.raw_text    = $raw_text
+    """, section=section_name, description=description, raw_text=raw_text)
 
-    # Generic handler
     def create_nodes(items, label, rel):
         for item in items:
+            if not item or not str(item).strip():
+                continue
             tx.run(f"""
-                MERGE (n:{label} {{text: $text}})
+                MERGE (n:{label} {{name: $name}})
                 WITH n
                 MATCH (s:Section {{name: $section}})
                 MERGE (s)-[:{rel}]->(n)
-            """, text=item, section=section_name)
+            """, name=str(item).strip(), section=section_name)
 
-    create_nodes(section_data.get("eligibility", []), "Eligibility", "HAS_ELIGIBILITY")
-    create_nodes(section_data.get("conditions", []), "Condition", "HAS_CONDITION")
-    create_nodes(section_data.get("exceptions", []), "Exception", "HAS_EXCEPTION")
-    create_nodes(section_data.get("investments", []), "Investment", "HAS_INVESTMENT")
+    create_nodes(section_data.get("eligibility",  []), "Eligibility", "HAS_ELIGIBILITY")
+    create_nodes(section_data.get("conditions",   []), "Condition",   "HAS_CONDITION")
+    create_nodes(section_data.get("exceptions",   []), "Exception",   "HAS_EXCEPTION")
+    create_nodes(section_data.get("investments",  []), "Investment",  "HAS_INVESTMENT")
+    create_nodes(section_data.get("limits",       []), "Limit",       "HAS_LIMIT")
 
 
-# -------------------------------
-# LOAD DATA
-# -------------------------------
 def load_data():
     with open(JSON_FILE, "r") as f:
         data = json.load(f)
 
-    print(f"Total sections: {len(data)}")
+    print(f"Total sections to load: {len(data)}")
+    failed = []
 
     with driver.session() as session:
         for i, section in enumerate(data):
-            print(f"Inserting {section['section']} ({i+1}/{len(data)})")
-            session.execute_write(create_kg, section)   # ✅ FIXED
+            try:
+                print(f"Inserting {section['section']} ({i+1}/{len(data)})")
+                session.execute_write(create_kg, section)
+            except Exception as e:
+                print(f"  Failed: {section['section']} — {e}")
+                failed.append(section["section"])
 
-    print("\n✅ KG successfully created!")
+    driver.close()
+    print(f"\nKG successfully created!")
+    if failed:
+        print(f"Failed sections ({len(failed)}): {failed}")
 
 
-# -------------------------------
-# RUN
-# -------------------------------
 if __name__ == "__main__":
     load_data()
